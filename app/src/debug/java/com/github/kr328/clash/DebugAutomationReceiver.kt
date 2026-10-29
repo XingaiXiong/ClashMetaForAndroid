@@ -7,6 +7,7 @@ import android.app.Activity
 import android.util.Log
 import com.github.kr328.clash.common.compat.startForegroundServiceCompat
 import com.github.kr328.clash.common.constants.Intents
+import com.github.kr328.clash.remote.Remote
 import com.github.kr328.clash.service.ClashService
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.service.store.ServiceStore
@@ -21,32 +22,44 @@ class DebugAutomationReceiver : BroadcastReceiver() {
         val pending = goAsync()
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            var stage = "initialize"
             try {
                 val store = ServiceStore(context)
 
                 when (intent.action) {
                     ACTION_CONFIGURE -> {
+                        stage = "configure settings"
                         applySettings(store, intent)
                         context.sendBroadcast(
                             Intent(Intents.ACTION_OVERRIDE_CHANGED).setPackage(context.packageName)
                         )
                     }
                     ACTION_LOAD_PROFILE -> {
-                        applySettings(store, intent)
-                        val url = intent.getStringExtra(EXTRA_URL)
-                            ?: throw IllegalArgumentException("Missing profile URL")
-                        val name = intent.getStringExtra(EXTRA_NAME) ?: "ADB test profile"
-                        val uuid = withProfile {
-                            create(Profile.Type.Url, name, url).also { id ->
-                                patch(id, name, url, 0L, null)
-                                commit(id)
+                        // Remote is normally bound by the visible UI. Bind explicitly so ADB
+                        // automation also works when no Activity has been opened.
+                        stage = "bind profile service"
+                        Remote.service.bind()
+                        try {
+                            stage = "import profile"
+                            applySettings(store, intent)
+                            val url = intent.getStringExtra(EXTRA_URL)
+                                ?: throw IllegalArgumentException("Missing profile URL")
+                            val name = intent.getStringExtra(EXTRA_NAME) ?: "ADB test profile"
+                            val uuid = withProfile {
+                                create(Profile.Type.Url, name, url).also { id ->
+                                    patch(id, name, url, 0L, null)
+                                    commit(id)
+                                }
                             }
+                            withProfile {
+                                val profile = queryByUUID(uuid)
+                                    ?: throw IllegalStateException("Imported profile was not found")
+                                setActive(profile)
+                            }
+                        } finally {
+                            Remote.service.unbind()
                         }
-                        withProfile {
-                            val profile = queryByUUID(uuid)
-                                ?: throw IllegalStateException("Imported profile was not found")
-                            setActive(profile)
-                        }
+                        stage = "start clash service"
                         context.startForegroundServiceCompat(
                             Intent(context, ClashService::class.java)
                         )
@@ -56,7 +69,7 @@ class DebugAutomationReceiver : BroadcastReceiver() {
 
                 pending.setResultCode(Activity.RESULT_OK)
             } catch (e: Exception) {
-                Log.e(TAG, "ADB automation failed (${e.javaClass.simpleName})")
+                Log.e(TAG, "ADB automation failed during $stage (${e.javaClass.simpleName}): ${e.message.orEmpty().take(160)}")
                 pending.setResultCode(Activity.RESULT_CANCELED)
             } finally {
                 pending.finish()

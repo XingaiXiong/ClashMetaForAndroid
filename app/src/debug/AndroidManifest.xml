@@ -5,8 +5,8 @@
             android:name=".DebugAutomationReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.github.metacubex.clash.secondhop.DEBUG_CONFIGURE" />
-                <action android:name="com.github.metacubex.clash.secondhop.DEBUG_LOAD_PROFILE" />
+                <action android:name="${applicationId}.DEBUG_CONFIGURE" />
+                <action android:name="${applicationId}.DEBUG_LOAD_PROFILE" />
             </intent-filter>
         </receiver>
     </application>

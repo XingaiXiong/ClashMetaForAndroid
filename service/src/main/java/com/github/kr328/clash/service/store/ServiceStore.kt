@@ -3,7 +3,6 @@ package com.github.kr328.clash.service.store
 import android.content.Context
 import com.github.kr328.clash.common.store.Store
 import com.github.kr328.clash.common.store.asStoreProvider
-import com.github.kr328.clash.service.BuildConfig
 import com.github.kr328.clash.service.PreferenceProvider
 import com.github.kr328.clash.service.model.AccessControlMode
 import java.util.*
@@ -39,7 +38,27 @@ class ServiceStore(context: Context) {
 
     var secondHopEnabled: Boolean by store.boolean(
         key = "second_hop_enabled",
-        defaultValue = BuildConfig.SECOND_HOP_SERVER.isNotBlank() && BuildConfig.SECOND_HOP_PORT > 0
+        defaultValue = false
+    )
+
+    var secondHopServer: String by store.string(
+        key = "second_hop_server",
+        defaultValue = ""
+    )
+
+    var secondHopPort: Int by store.int(
+        key = "second_hop_port",
+        defaultValue = 0
+    )
+
+    var secondHopUsername: String by store.string(
+        key = "second_hop_username",
+        defaultValue = ""
+    )
+
+    var secondHopPassword: String by store.string(
+        key = "second_hop_password",
+        defaultValue = ""
     )
 
     var secondHopPackages by store.stringSet(

@@ -59,9 +59,39 @@ class DebugAutomationReceiver : BroadcastReceiver() {
     }
 
     private fun applySettings(store: ServiceStore, intent: Intent) {
-        if (intent.hasExtra(EXTRA_ENABLED)) {
-            store.secondHopEnabled = intent.getBooleanExtra(EXTRA_ENABLED, false)
+        val server = if (intent.hasExtra(EXTRA_SERVER)) {
+            intent.getStringExtra(EXTRA_SERVER).orEmpty().trim()
+        } else {
+            store.secondHopServer
         }
+        val port = if (intent.hasExtra(EXTRA_PORT)) {
+            intent.getIntExtra(EXTRA_PORT, 0)
+        } else {
+            store.secondHopPort
+        }
+        val username = if (intent.hasExtra(EXTRA_USERNAME)) {
+            intent.getStringExtra(EXTRA_USERNAME).orEmpty()
+        } else {
+            store.secondHopUsername
+        }
+        val password = if (intent.hasExtra(EXTRA_PASSWORD)) {
+            intent.getStringExtra(EXTRA_PASSWORD).orEmpty()
+        } else {
+            store.secondHopPassword
+        }
+        val enabled = intent.getBooleanExtra(EXTRA_ENABLED, store.secondHopEnabled)
+        require(port in 0..65535) { "Second-hop port must be between 1 and 65535" }
+        if (enabled) {
+            require(server.isNotBlank() && port in 1..65535) { "Second-hop server and port are required" }
+            require(username.isNotEmpty() && password.isNotEmpty()) { "Second-hop credentials are required" }
+        }
+
+        store.secondHopServer = server
+        store.secondHopPort = port
+        store.secondHopUsername = username
+        store.secondHopPassword = password
+        store.secondHopEnabled = enabled
+
         if (intent.hasExtra(EXTRA_PACKAGES)) {
             store.secondHopPackages = intent.getStringExtra(EXTRA_PACKAGES)
                 .orEmpty()
@@ -74,10 +104,14 @@ class DebugAutomationReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "ClashMetaADB"
-        private const val ACTION_CONFIGURE = "com.github.metacubex.clash.secondhop.DEBUG_CONFIGURE"
-        private const val ACTION_LOAD_PROFILE = "com.github.metacubex.clash.secondhop.DEBUG_LOAD_PROFILE"
+        private val ACTION_CONFIGURE = "${BuildConfig.APPLICATION_ID}.DEBUG_CONFIGURE"
+        private val ACTION_LOAD_PROFILE = "${BuildConfig.APPLICATION_ID}.DEBUG_LOAD_PROFILE"
         private const val EXTRA_ENABLED = "enabled"
         private const val EXTRA_PACKAGES = "packages"
+        private const val EXTRA_SERVER = "server"
+        private const val EXTRA_PORT = "port"
+        private const val EXTRA_USERNAME = "username"
+        private const val EXTRA_PASSWORD = "password"
         private const val EXTRA_URL = "url"
         private const val EXTRA_NAME = "name"
     }

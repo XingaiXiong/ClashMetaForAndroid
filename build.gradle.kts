@@ -50,32 +50,6 @@ subprojects {
                 applicationId = customApplicationId.takeIf { it?.isNotBlank() == true } ?: "com.github.metacubex.clash.secondhop"
             }
 
-            if (project.name == "service") {
-                fun quoteBuildConfigString(value: String): String =
-                    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r") + "\""
-
-                buildConfigField(
-                    "String",
-                    "SECOND_HOP_SERVER",
-                    quoteBuildConfigString(queryConfigProperty("second.hop.server") as? String ?: "")
-                )
-                buildConfigField(
-                    "int",
-                    "SECOND_HOP_PORT",
-                    ((queryConfigProperty("second.hop.port") as? String)?.toIntOrNull() ?: 0).toString()
-                )
-                buildConfigField(
-                    "String",
-                    "SECOND_HOP_USERNAME",
-                    quoteBuildConfigString(queryConfigProperty("second.hop.username") as? String ?: "")
-                )
-                buildConfigField(
-                    "String",
-                    "SECOND_HOP_PASSWORD",
-                    quoteBuildConfigString(queryConfigProperty("second.hop.password") as? String ?: "")
-                )
-            }
-
             project.name.let { name ->
                 namespace = if (name == "app") "com.github.kr328.clash"
                 else "com.github.kr328.clash.$name"

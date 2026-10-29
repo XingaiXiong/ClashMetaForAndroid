@@ -48,6 +48,13 @@ func notifyTimeZoneChanged(name C.c_string, offset C.int) {
 	app.NotifyTimeZoneChanged(C.GoString(name), int(offset))
 }
 
+//export setSecondHopConfig
+func setSecondHopConfig(content C.c_string) {
+	if err := app.SetSecondHopConfig(C.GoString(content)); err != nil {
+		log.Warnln("Set second-hop proxy configuration: %s", err.Error())
+	}
+}
+
 
 //export queryConfiguration
 func queryConfiguration() *C.char {

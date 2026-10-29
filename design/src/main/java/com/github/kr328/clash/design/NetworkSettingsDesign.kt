@@ -22,7 +22,8 @@ class NetworkSettingsDesign(
     running: Boolean,
 ) : Design<NetworkSettingsDesign.Request>(context) {
     enum class Request {
-        StartAccessControlList
+        StartAccessControlList,
+        StartSecondHopAppList,
     }
 
     private val binding = DesignSettingsCommonBinding
@@ -123,6 +124,29 @@ class NetworkSettingsDesign(
                 configure = vpnDependencies::add,
             )
 
+            var secondHopApps: ClickablePreference? = null
+            switch(
+                value = srvStore::secondHopEnabled,
+                title = R.string.second_hop_proxy,
+                summary = R.string.second_hop_proxy_summary,
+            ) {
+                vpnDependencies.add(this)
+                listener = OnChangedListener {
+                    secondHopApps?.enabled = srvStore.secondHopEnabled
+                }
+            }
+
+            val secondHopAppPreference = clickable(
+                title = R.string.second_hop_apps,
+                summary = R.string.second_hop_apps_summary,
+            ) {
+                clicked {
+                    requests.trySend(Request.StartSecondHopAppList)
+                }
+            }
+            secondHopApps = secondHopAppPreference
+            secondHopAppPreference.enabled = srvStore.secondHopEnabled
+
             clickable(
                 title = R.string.access_control_packages,
                 summary = R.string.access_control_packages_summary,
@@ -138,6 +162,7 @@ class NetworkSettingsDesign(
                 vpnDependencies.forEach {
                     it.enabled = false
                 }
+                secondHopAppPreference.enabled = false
             } else {
                 vpn.listener?.onChanged()
             }

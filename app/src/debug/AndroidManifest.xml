@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver
+            android:name=".DebugAutomationReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.github.metacubex.clash.secondhop.DEBUG_CONFIGURE" />
+                <action android:name="com.github.metacubex.clash.secondhop.DEBUG_LOAD_PROFILE" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

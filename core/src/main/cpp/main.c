@@ -110,6 +110,17 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeNotifyInstalledAppChanged(J
 }
 
 JNIEXPORT void JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeSetSecondHopConfig(JNIEnv *env,
+                                                                        jobject thiz,
+                                                                        jstring content) {
+    TRACE_METHOD();
+
+    scoped_string _content = get_string(content);
+
+    setSecondHopConfig(_content);
+}
+
+JNIEXPORT void JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeStartTun(JNIEnv *env, jobject thiz,
                                                               jint fd,
                                                               jstring stack,

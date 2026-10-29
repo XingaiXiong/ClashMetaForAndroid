@@ -25,6 +25,7 @@ var processors = []processor{
 	patchTun,
 	patchListeners,
 	patchProviders,
+	patchSecondHop,
 	validConfig,
 }
 

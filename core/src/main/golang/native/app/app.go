@@ -1,14 +1,28 @@
 package app
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 var appVersionName string
 var platformVersion int
 var installedAppsUid = map[int]string{}
+
+type SecondHopConfig struct {
+	Enabled  bool     `json:"enabled"`
+	Server   string   `json:"server"`
+	Port     int      `json:"port"`
+	Username string   `json:"username"`
+	Password string   `json:"password"`
+	Apps     []string `json:"apps"`
+}
+
+var secondHopConfigLock sync.RWMutex
+var secondHopConfig SecondHopConfig
 
 func ApplyVersionName(versionName string) {
 	appVersionName = versionName
@@ -46,6 +60,27 @@ func NotifyInstallAppsChanged(uidList string) {
 
 func QueryAppByUid(uid int) string {
 	return installedAppsUid[uid]
+}
+
+func SetSecondHopConfig(content string) error {
+	var config SecondHopConfig
+	if err := json.Unmarshal([]byte(content), &config); err != nil {
+		return err
+	}
+
+	secondHopConfigLock.Lock()
+	secondHopConfig = config
+	secondHopConfigLock.Unlock()
+	return nil
+}
+
+func SecondHopSettings() SecondHopConfig {
+	secondHopConfigLock.RLock()
+	defer secondHopConfigLock.RUnlock()
+
+	config := secondHopConfig
+	config.Apps = append([]string(nil), secondHopConfig.Apps...)
+	return config
 }
 
 func NotifyTimeZoneChanged(name string, offset int) {

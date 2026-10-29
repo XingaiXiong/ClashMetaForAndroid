@@ -64,6 +64,10 @@ object Clash {
         Bridge.nativeNotifyInstalledAppChanged(uidList)
     }
 
+    fun setSecondHopConfig(content: String) {
+        Bridge.nativeSetSecondHopConfig(content)
+    }
+
     fun startTun(
         fd: Int,
         stack: String,

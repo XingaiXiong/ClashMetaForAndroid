@@ -1,8 +1,13 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="PluralsCandidate">
-    <string name="launch_name_meta">Clash Meta</string>
-    <string name="launch_name_alpha">Clash Meta Alpha</string>
-    <string name="application_name_meta">Clash Meta for Android</string>
-    <string name="application_name_alpha">Clash Meta for Android Alpha</string>
+    <string name="launch_name_meta">Clash Meta 2-Hop</string>
+    <string name="launch_name_alpha">Clash Meta 2-Hop Alpha</string>
+    <string name="application_name_meta">Clash Meta 2-Hop for Android</string>
+    <string name="application_name_alpha">Clash Meta 2-Hop for Android Alpha</string>
+    <string name="second_hop_proxy">Second-hop proxy</string>
+    <string name="second_hop_proxy_summary">Send Google and selected-app TCP through the current proxy and the second proxy; block their UDP to prevent fallback</string>
+    <string name="second_hop_apps">Second-hop apps</string>
+    <string name="second_hop_apps_summary">Choose apps whose traffic uses the second proxy</string>
+    <string name="second_hop_app_packages">Second-hop app packages</string>
 
     <string name="stopped">Stopped</string>
     <string name="tap_to_start">Tap to start</string>

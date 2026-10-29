@@ -37,9 +37,14 @@ func UnmarshalAndPatch(profilePath string) (*config.RawConfig, error) {
 		return nil, err
 	}
 
-	rawConfig, err := config.UnmarshalRawConfig(configData)
-	if err != nil {
-		return nil, err
+	rawConfig, parseErr := config.UnmarshalRawConfig(configData)
+	if parseErr != nil || (len(rawConfig.Proxy) == 0 && len(rawConfig.ProxyProvider) == 0) {
+		subscriptionConfig, subscriptionErr := parseProxySubscription(configData)
+		if subscriptionErr == nil {
+			rawConfig = subscriptionConfig
+		} else if parseErr != nil {
+			return nil, parseErr
+		}
 	}
 
 	if err := process(rawConfig, profilePath); err != nil {

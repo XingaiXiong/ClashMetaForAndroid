@@ -5,6 +5,7 @@ import com.github.kr328.clash.common.constants.Intents
 import com.github.kr328.clash.common.log.Log
 import com.github.kr328.clash.core.Clash
 import com.github.kr328.clash.service.StatusProvider
+import com.github.kr328.clash.service.applySecondHopConfig
 import com.github.kr328.clash.service.data.ImportedDao
 import com.github.kr328.clash.service.data.SelectionDao
 import com.github.kr328.clash.service.store.ServiceStore
@@ -56,6 +57,7 @@ class ConfigurationModule(service: Service) : Module<ConfigurationModule.LoadExc
                     ?: throw NullPointerException("No profile selected")
 
                 Clash.setAgeSecretKey(active.ageSecretKey?.takeIf { it.isNotBlank() })
+                service.applySecondHopConfig()
 
                 Clash.load(service.importedDir.resolve(active.uuid.toString())).await()
 

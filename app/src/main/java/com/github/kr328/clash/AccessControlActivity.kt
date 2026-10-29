@@ -22,15 +22,24 @@ import kotlinx.coroutines.withContext
 class AccessControlActivity : BaseActivity<AccessControlDesign>() {
     override suspend fun main() {
         val service = ServiceStore(this)
+        val secondHopSelection = intent.getBooleanExtra(EXTRA_SECOND_HOP, false)
+        if (secondHopSelection) {
+            title = getString(com.github.kr328.clash.design.R.string.second_hop_app_packages)
+        }
 
         val selected = withContext(Dispatchers.IO) {
-            service.accessControlPackages.toMutableSet()
+            (if (secondHopSelection) service.secondHopPackages else service.accessControlPackages).toMutableSet()
         }
 
         defer {
             withContext(Dispatchers.IO) {
-                val changed = selected != service.accessControlPackages
-                service.accessControlPackages = selected
+                val previous = if (secondHopSelection) service.secondHopPackages else service.accessControlPackages
+                val changed = selected != previous
+                if (secondHopSelection) {
+                    service.secondHopPackages = selected
+                } else {
+                    service.accessControlPackages = selected
+                }
                 if (clashRunning && changed) {
                     stopClashService()
                     while (clashRunning) {
@@ -55,7 +64,7 @@ class AccessControlActivity : BaseActivity<AccessControlDesign>() {
                 design.requests.onReceive {
                     when (it) {
                         AccessControlDesign.Request.ReloadApps -> {
-                            design.patchApps(loadApps(selected))
+                            design.patchApps(loadApps(selected, secondHopSelection))
                         }
 
                         AccessControlDesign.Request.SelectAll -> {
@@ -117,7 +126,7 @@ class AccessControlActivity : BaseActivity<AccessControlDesign>() {
         }
     }
 
-    private suspend fun loadApps(selected: Set<String>): List<AppInfo> =
+    private suspend fun loadApps(selected: Set<String>, secondHopSelection: Boolean): List<AppInfo> =
         withContext(Dispatchers.IO) {
             val reverse = uiStore.accessControlReverse
             val sort = uiStore.accessControlSort
@@ -140,7 +149,7 @@ class AccessControlActivity : BaseActivity<AccessControlDesign>() {
                     it.requestedPermissions?.contains(INTERNET) == true || it.applicationInfo!!.uid < android.os.Process.FIRST_APPLICATION_UID
                 }
                 .filter {
-                    systemApp || !it.isSystemApp
+                    systemApp || secondHopSelection || !it.isSystemApp
                 }
                 .map {
                     it.toAppInfo(pm)
@@ -153,4 +162,8 @@ class AccessControlActivity : BaseActivity<AccessControlDesign>() {
         get() {
             return applicationInfo?.flags?.and(ApplicationInfo.FLAG_SYSTEM) != 0
         }
+
+    companion object {
+        const val EXTRA_SECOND_HOP = "com.github.metacubex.clash.extra.SECOND_HOP_SELECTION"
+    }
 }

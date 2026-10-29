@@ -57,16 +57,20 @@ Feature of [Clash.Meta](https://github.com/MetaCubeX/Clash.Meta)
 
 ### Automation
 
-APP package name is `com.github.metacubex.clash.meta`
+The application ID base is `com.github.metacubex.clash.secondhop`. Alpha and Meta flavors use the `.alpha` and `.meta` suffixes; the GitHub Actions debug build uses `com.github.metacubex.clash.secondhop.alpha`.
 
 - Toggle Clash.Meta service status
-  - Send intent to activity `com.github.kr328.clash.ExternalControlActivity` with action `com.github.metacubex.clash.meta.action.TOGGLE_CLASH`
+  - Send intent to activity `com.github.kr328.clash.ExternalControlActivity` with action `<applicationId>.action.TOGGLE_CLASH`
 - Start Clash.Meta service
-  - Send intent to activity `com.github.kr328.clash.ExternalControlActivity` with action `com.github.metacubex.clash.meta.action.START_CLASH`
+  - Send intent to activity `com.github.kr328.clash.ExternalControlActivity` with action `<applicationId>.action.START_CLASH`
 - Stop Clash.Meta service
-  - Send intent to activity `com.github.kr328.clash.ExternalControlActivity` with action `com.github.metacubex.clash.meta.action.STOP_CLASH`
+  - Send intent to activity `com.github.kr328.clash.ExternalControlActivity` with action `<applicationId>.action.STOP_CLASH`
 - Import a profile
   - URL Scheme `clash://install-config?url=<encoded URI>` or `clashmeta://install-config?url=<encoded URI>`
+- Configure the debug build without opening the app UI
+  - `DebugAutomationReceiver` accepts explicit `DEBUG_CONFIGURE` and `DEBUG_LOAD_PROFILE` broadcasts from the Android shell (`android.permission.DUMP`). The actions are `<applicationId>.DEBUG_CONFIGURE` and `<applicationId>.DEBUG_LOAD_PROFILE`.
+  - Pass `server`, `port`, `username`, `password`, `enabled`, and comma-separated `packages` as extras. The receiver stores the values locally; no proxy credentials are compiled into the APK.
+  - `DEBUG_CONFIGURE` reloads the current profile if the service is running. `DEBUG_LOAD_PROFILE` can receive the same settings plus `url` and `name`, import that profile, and start the service.
 
 ### Contribution and Project Maintenance
 

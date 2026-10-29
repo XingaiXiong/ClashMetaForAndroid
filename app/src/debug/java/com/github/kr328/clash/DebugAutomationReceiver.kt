@@ -6,6 +6,7 @@ import android.content.Intent
 import android.app.Activity
 import android.util.Log
 import com.github.kr328.clash.common.compat.startForegroundServiceCompat
+import com.github.kr328.clash.common.constants.Intents
 import com.github.kr328.clash.service.ClashService
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.service.store.ServiceStore
@@ -22,11 +23,16 @@ class DebugAutomationReceiver : BroadcastReceiver() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val store = ServiceStore(context)
-                applySettings(store, intent)
 
                 when (intent.action) {
-                    ACTION_CONFIGURE -> Unit
+                    ACTION_CONFIGURE -> {
+                        applySettings(store, intent)
+                        context.sendBroadcast(
+                            Intent(Intents.ACTION_OVERRIDE_CHANGED).setPackage(context.packageName)
+                        )
+                    }
                     ACTION_LOAD_PROFILE -> {
+                        applySettings(store, intent)
                         val url = intent.getStringExtra(EXTRA_URL)
                             ?: throw IllegalArgumentException("Missing profile URL")
                         val name = intent.getStringExtra(EXTRA_NAME) ?: "ADB test profile"

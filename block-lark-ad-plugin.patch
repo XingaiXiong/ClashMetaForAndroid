@@ -1,0 +1,25 @@
+diff --git a/config/config.go b/config/config.go
+index cc8c1016..cb62e545 100644
+--- a/config/config.go
++++ b/config/config.go
+@@ -706,6 +706,20 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	// Built-in protection for the verified Lark ad-plugin download endpoint.
++	// Keep this ahead of profile rules so user routing rules cannot bypass it.
++	// Scope is limited to the observed destination IP and TCP port.
++	blockLarkAdPlugin, err := R.ParseRule(
++		"AND",
++		"((IP-CIDR,141.11.140.226/32,no-resolve),(DST-PORT,5567))",
++		"REJECT",
++		nil,
++		subRules,
++	)
++	if err != nil {
++		return nil, fmt.Errorf("built-in Lark ad-plugin block rule: %w", err)
++	}
++	rules = append([]C.Rule{RW.NewRuleWrapper(blockLarkAdPlugin)}, rules...)
+ 	config.Rules = rules
+ 
+ 	hosts, err := parseHosts(rawCfg)

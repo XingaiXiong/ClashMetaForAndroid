@@ -20,6 +20,7 @@ class MainDesign(context: Context) : Design<MainDesign.Request>(context) {
         OpenProfiles,
         OpenProviders,
         OpenLogs,
+        OpenVideoCapture,
         OpenSettings,
         OpenHelp,
         OpenAbout,

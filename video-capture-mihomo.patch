@@ -1,0 +1,169 @@
+diff --git a/tunnel/tunnel.go b/tunnel/tunnel.go
+index 86dbc14a..8ef7c459 100644
+--- a/tunnel/tunnel.go
++++ b/tunnel/tunnel.go
+@@ -599,6 +599,7 @@ func handleTCPConn(connCtx C.ConnContext) {
+ 			if err != nil {
+ 				return
+ 			}
++			observeVideoPeek(metadata, peekBytes)
+ 			if peekLen = len(peekBytes); peekLen > 0 {
+ 				_, _ = conn.Discard(peekLen)
+ 			}
+@@ -621,7 +622,7 @@ func handleTCPConn(connCtx C.ConnContext) {
+ 	peekMutex.Lock()
+ 	defer peekMutex.Unlock()
+ 	_ = conn.SetReadDeadline(time.Time{}) // reset
+-	handleSocket(conn, remoteConn)
++	handleSocket(wrapVideoObservation(conn, metadata), remoteConn)
+ }
+ 
+ func logMetadataErr(metadata *C.Metadata, rule C.Rule, proxy C.ProxyAdapter, err error) {
+diff --git a/tunnel/video_capture.go b/tunnel/video_capture.go
+new file mode 100644
+index 00000000..4c755cf3
+--- /dev/null
++++ b/tunnel/video_capture.go
+@@ -0,0 +1,142 @@
++package tunnel
++
++import (
++	"bytes"
++	"encoding/json"
++	"net"
++	"net/url"
++	"os"
++	"path/filepath"
++	"strings"
++	"sync"
++	"time"
++
++	"github.com/metacubex/mihomo/component/process"
++	C "github.com/metacubex/mihomo/constant"
++)
++
++// This observer only sees cleartext HTTP/1 requests sent through TUN. It does
++// not decrypt TLS, inspect responses, or retain arbitrary traffic.
++type videoObservationConn struct {
++	net.Conn
++	packageName string
++	buffer []byte
++	done bool
++}
++
++var videoObservationMu sync.Mutex
++
++func wrapVideoObservation(conn net.Conn, metadata *C.Metadata) net.Conn {
++	pkg := selectedVideoPackage(metadata)
++	if pkg == "" {
++		return conn
++	}
++	return &videoObservationConn{Conn: conn, packageName: pkg}
++}
++
++func selectedVideoPackage(metadata *C.Metadata) string {
++	if metadata.Type != C.TUN {
++		return ""
++	}
++	selected, err := os.ReadFile(filepath.Join(C.Path.HomeDir(), "video-apps.txt"))
++	if err != nil || len(selected) == 0 {
++		return ""
++	}
++	pkg := metadata.Process
++	if pkg == "" {
++		pkg, _ = process.FindPackageName(metadata)
++	}
++	if pkg == "" || !bytes.Contains(selected, []byte("\n"+pkg+"\n")) {
++		return ""
++	}
++	return pkg
++}
++
++func observeVideoPeek(metadata *C.Metadata, data []byte) {
++	if address := cleartextPlaylistURL(data); address != "" {
++		if pkg := selectedVideoPackage(metadata); pkg != "" {
++			recordVideoObservation(pkg, address)
++		}
++	}
++}
++
++func (c *videoObservationConn) Read(p []byte) (int, error) {
++	n, err := c.Conn.Read(p)
++	if n > 0 && !c.done {
++		if len(c.buffer)+n > 8192 {
++			c.done = true
++		} else {
++			c.buffer = append(c.buffer, p[:n]...)
++			if end := bytes.Index(c.buffer, []byte("\r\n\r\n")); end >= 0 {
++				c.done = true
++				if address := cleartextPlaylistURL(c.buffer[:end]); address != "" {
++					recordVideoObservation(c.packageName, address)
++				}
++			}
++		}
++	}
++	return n, err
++}
++
++func (c *videoObservationConn) CloseWrite() error {
++	if half, ok := c.Conn.(interface{ CloseWrite() error }); ok {
++		return half.CloseWrite()
++	}
++	return c.Conn.Close()
++}
++
++func cleartextPlaylistURL(header []byte) string {
++	lines := bytes.Split(header, []byte("\r\n"))
++	if len(lines) < 2 {
++		return ""
++	}
++	parts := bytes.Split(lines[0], []byte(" "))
++	if len(parts) != 3 || string(parts[0]) != "GET" || !bytes.HasPrefix(parts[2], []byte("HTTP/1.")) {
++		return ""
++	}
++	target, err := url.Parse(string(parts[1]))
++	if err != nil || !strings.EqualFold(filepath.Ext(target.Path), ".m3u8") {
++		return ""
++	}
++	if target.IsAbs() {
++		if target.Scheme == "http" && target.Host != "" {
++			return target.String()
++		}
++		return ""
++	}
++	if !strings.HasPrefix(target.Path, "/") {
++		return ""
++	}
++	for _, line := range lines[1:] {
++		name, value, ok := bytes.Cut(line, []byte(":"))
++		if ok && bytes.EqualFold(name, []byte("Host")) {
++			host := strings.TrimSpace(string(value))
++			if strings.ContainsAny(host, "/\\@ ") || host == "" {
++				return ""
++			}
++			target.Scheme = "http"
++			target.Host = host
++			return target.String()
++		}
++	}
++	return ""
++}
++
++func recordVideoObservation(pkg, address string) {
++	entry, err := json.Marshal(struct {
++		Package string `json:"package"`
++		URL string `json:"url"`
++		Time int64 `json:"time"`
++	}{pkg, address, time.Now().UnixMilli()})
++	if err != nil { return }
++	videoObservationMu.Lock()
++	defer videoObservationMu.Unlock()
++	path := filepath.Join(C.Path.HomeDir(), "video-observed.jsonl")
++	if info, err := os.Stat(path); err == nil && info.Size() > 5*1024*1024 {
++		_ = os.Remove(path)
++	}
++	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
++	if err != nil { return }
++	defer f.Close()
++	_, _ = f.Write(append(entry, '\n'))
++}

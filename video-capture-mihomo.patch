@@ -1,5 +1,5 @@
 diff --git a/tunnel/tunnel.go b/tunnel/tunnel.go
-index 86dbc14a..8ef7c459 100644
+index 86dbc14a..442ac4f5 100644
 --- a/tunnel/tunnel.go
 +++ b/tunnel/tunnel.go
 @@ -599,6 +599,7 @@ func handleTCPConn(connCtx C.ConnContext) {
@@ -10,27 +10,29 @@ index 86dbc14a..8ef7c459 100644
  			if peekLen = len(peekBytes); peekLen > 0 {
  				_, _ = conn.Discard(peekLen)
  			}
-@@ -621,7 +622,7 @@ func handleTCPConn(connCtx C.ConnContext) {
+@@ -621,6 +622,11 @@ func handleTCPConn(connCtx C.ConnContext) {
  	peekMutex.Lock()
  	defer peekMutex.Unlock()
  	_ = conn.SetReadDeadline(time.Time{}) // reset
--	handleSocket(conn, remoteConn)
-+	handleSocket(wrapVideoObservation(conn, metadata), remoteConn)
++	if buffered := conn.Buffered(); buffered > 0 {
++		if request, err := conn.Peek(buffered); err == nil {
++			observeVideoPeek(metadata, request)
++		}
++	}
+ 	handleSocket(conn, remoteConn)
  }
  
- func logMetadataErr(metadata *C.Metadata, rule C.Rule, proxy C.ProxyAdapter, err error) {
 diff --git a/tunnel/video_capture.go b/tunnel/video_capture.go
 new file mode 100644
-index 00000000..4c755cf3
+index 00000000..e98f50e8
 --- /dev/null
 +++ b/tunnel/video_capture.go
-@@ -0,0 +1,142 @@
+@@ -0,0 +1,99 @@
 +package tunnel
 +
 +import (
 +	"bytes"
 +	"encoding/json"
-+	"net"
 +	"net/url"
 +	"os"
 +	"path/filepath"
@@ -42,24 +44,7 @@ index 00000000..4c755cf3
 +	C "github.com/metacubex/mihomo/constant"
 +)
 +
-+// This observer only sees cleartext HTTP/1 requests sent through TUN. It does
-+// not decrypt TLS, inspect responses, or retain arbitrary traffic.
-+type videoObservationConn struct {
-+	net.Conn
-+	packageName string
-+	buffer []byte
-+	done bool
-+}
-+
 +var videoObservationMu sync.Mutex
-+
-+func wrapVideoObservation(conn net.Conn, metadata *C.Metadata) net.Conn {
-+	pkg := selectedVideoPackage(metadata)
-+	if pkg == "" {
-+		return conn
-+	}
-+	return &videoObservationConn{Conn: conn, packageName: pkg}
-+}
 +
 +func selectedVideoPackage(metadata *C.Metadata) string {
 +	if metadata.Type != C.TUN {
@@ -85,31 +70,6 @@ index 00000000..4c755cf3
 +			recordVideoObservation(pkg, address)
 +		}
 +	}
-+}
-+
-+func (c *videoObservationConn) Read(p []byte) (int, error) {
-+	n, err := c.Conn.Read(p)
-+	if n > 0 && !c.done {
-+		if len(c.buffer)+n > 8192 {
-+			c.done = true
-+		} else {
-+			c.buffer = append(c.buffer, p[:n]...)
-+			if end := bytes.Index(c.buffer, []byte("\r\n\r\n")); end >= 0 {
-+				c.done = true
-+				if address := cleartextPlaylistURL(c.buffer[:end]); address != "" {
-+					recordVideoObservation(c.packageName, address)
-+				}
-+			}
-+		}
-+	}
-+	return n, err
-+}
-+
-+func (c *videoObservationConn) CloseWrite() error {
-+	if half, ok := c.Conn.(interface{ CloseWrite() error }); ok {
-+		return half.CloseWrite()
-+	}
-+	return c.Conn.Close()
 +}
 +
 +func cleartextPlaylistURL(header []byte) string {

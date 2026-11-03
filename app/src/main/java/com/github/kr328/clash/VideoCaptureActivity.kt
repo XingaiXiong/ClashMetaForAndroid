@@ -27,6 +27,7 @@ import java.text.DateFormat
 import java.util.Date
 
 class VideoCaptureActivity : AppCompatActivity() {
+    private val targetPackage = "org.jbbcy.lvdany" // Confirmed on the user's REA-AN00, UID 10200.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val store by lazy { getSharedPreferences("video_capture", MODE_PRIVATE) }
     private val coreDir by lazy { File(filesDir, "clash").apply { mkdirs() } }
@@ -48,6 +49,11 @@ class VideoCaptureActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val selection = File(coreDir, "video-apps.txt")
+        if (!selection.exists()) {
+            val installed = runCatching { packageManager.getApplicationInfo(targetPackage, 0) }.isSuccess
+            if (installed) selection.writeText("\n$targetPackage\n")
+        }
         title = "视频记录与下载"
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
